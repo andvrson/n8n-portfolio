@@ -1,0 +1,1832 @@
+{
+  "name": "Agente Whatsapp Con Subworkflow",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        992,
+        -16
+      ],
+      "id": "a9600533-8330-402e-ac50-5f4ed086c801",
+      "name": "WhatsApp Trigger",
+      "webhookId": "",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "812157525307804",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').all()[0].json.contacts[0].wa_id }}\n",
+        "textBody": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        6256,
+        -112
+      ],
+      "id": "24d3f513-59d5-42e7-af37-ed7b696f5db8",
+      "name": "Send message and wait for response",
+      "webhookId": "",
+      "executeOnce": false,
+      "credentials": {
+        "whatsAppApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, nombre, telefono, rut, correo\nFROM n8n_usuarios\nWHERE telefono = '+{{ $('WhatsApp Trigger').item.json.messages[0].from }}';\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2336,
+        -16
+      ],
+      "id": "6038f0b3-b629-4db9-9c5e-80a09bf0ca19",
+      "name": "Buscar Usuario",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fc3f25df-2423-4b3e-a0c9-eeb9bb928276",
+                    "leftValue": "={{ $json.multiple_usuarios }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "MultiUsuario"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.usuario_existe }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "399725a7-9870-4621-8b46-fe52855d5f1e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "User_Encontrado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "afd1ef78-9028-4507-a64a-48208706dcd1",
+                    "leftValue": "={{ $json.usuario_existe }}",
+                    "rightValue": 0,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "false",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "User_NoEncontrado"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        2784,
+        -32
+      ],
+      "id": "895c2b2b-ed71-4b26-bcc4-9fbb1332e0b7",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "812157525307804",
+        "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.messages[0].from }}",
+        "textBody": "¡Hola! ¿Cómo estás? Acabo de chequear pero no encontré tus datos registrados. Para registrarte comunícate al +56 9 5255 7036 ",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [
+        3008,
+        80
+      ],
+      "id": "26d44d88-0b8d-4958-b6da-90de7539be1a",
+      "name": "Send message and wait for response1",
+      "webhookId": "",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH input_ids AS (\n  SELECT unnest(string_to_array('{{ $json.ids }}', ', '))::int AS usuario_id\n)\nSELECT\n  i.usuario_id,\n  td.plan_id AS servicio_id,\n  td.nombre_especialidad,\n  td.nombre AS plan_nombre,\n  td.sesiones AS total_sesiones,\n  td.precio\nFROM input_ids i\nLEFT JOIN usuario_servicio us ON us.usuario_id = i.usuario_id\nLEFT JOIN tipo_de_plan td ON us.servicio_id = td.plan_id\nWHERE (us.fecha_fin IS NULL OR us.fecha_fin >= '{{ $now.format(\"yyyy-MM-dd\") }}' )\nORDER BY i.usuario_id, us.id DESC;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3232,
+        -112
+      ],
+      "id": "9901e1b3-bf74-48a1-b801-ac2c735f0df0",
+      "name": "ObtieneServicioContratado",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH max_fechas AS (\n  SELECT \n    usuario_id,\n    servicio_id,\n    MAX(fecha_inicio) AS max_fecha_inicio\n  FROM usuario_servicio\n  WHERE usuario_id IN ({{ $json.ids.join(', ') }})\n  GROUP BY usuario_id, servicio_id\n)\nSELECT \n  u.id AS usuario_id,\n  u.nombre,\n  u.telefono,\n  u.rut,\n  u.correo,\n  td.plan_id AS servicio_id,\n  td.nombre_especialidad,\n  td.nombre AS plan_nombre,\n  td.sesiones AS total_sesiones,\n  td.precio,\n  COALESCE(COUNT(s.sesion_id), 0) AS sesiones_usadas,\n  mf.max_fecha_inicio        -- 👈 clave para ordenar\nFROM n8n_usuarios u\nLEFT JOIN max_fechas mf \n  ON mf.usuario_id = u.id\nLEFT JOIN tipo_de_plan td \n  ON mf.servicio_id = td.plan_id\nLEFT JOIN sesiones s \n  ON s.usuario_id = u.id\n  AND s.servicio_id = td.plan_id\n  AND s.fecha >= mf.max_fecha_inicio\nWHERE u.id IN ({{ $json.ids.join(', ') }})\n  AND td.plan_id IS NOT NULL\nGROUP BY\n  u.id, u.nombre, u.telefono, u.rut, u.correo,\n  td.plan_id, td.nombre_especialidad, td.nombre,\n  td.sesiones, td.precio,\n  mf.max_fecha_inicio\nORDER BY\n  u.id,\n  mf.max_fecha_inicio DESC;  -- 👈 último servicio contratado primero\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3904,
+        -112
+      ],
+      "id": "3f9a19df-6e61-481a-b239-519574ef8a54",
+      "name": "Sesiones_Usadas",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1ec5cd7e-2fa0-4d70-9829-b089c969a498",
+              "name": "id",
+              "value": "={{ $json.usuario_id }}",
+              "type": "string"
+            },
+            {
+              "id": "a9da50c0-f8d7-49d0-bf7a-68c6c239e1db",
+              "name": "servicio_id",
+              "value": "={{ $json.servicio_id }}",
+              "type": "string"
+            },
+            {
+              "id": "b4425556-9cd3-47db-99ae-ef76f861c56c",
+              "name": "total_sesiones",
+              "value": "={{ $json.total_sesiones }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3456,
+        -112
+      ],
+      "id": "470f3584-c37d-4647-a444-3f76fc27dd3b",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Traer datos del WhatsApp Trigger (solo lo necesario)\nconst wa_id = $(\"WhatsApp Trigger\").all()[0].json.contacts?.[0]?.wa_id || null;\nconst userMessage = $(\"WhatsApp Trigger\").all()[0].json.messages?.[0]?.text?.body || \"\";\n\n// Traer mensaje citado desde Redis (nodo anterior)\nlet repliedMessage = null;\n\ntry {\n  const redisNode = $(\"Redis\").all();\n  if (redisNode?.length) {\n    repliedMessage = redisNode[0].json?.wa_id || null;\n  }\n} catch (e) {\n  repliedMessage = null;\n}\n\n// Si no hay resultados válidos o los campos clave son nulos\nif (\n  !$items().length ||\n  !$items()[0].json ||\n  !$items()[0].json.usuario_id\n) {\n  return [\n    {\n      json: {\n        // Datos WhatsApp que usa la memoria + agente\n        wa_id,\n        userMessage,\n        repliedMessage,\n\n        // Datos de tu lógica\n        usuario_existe: false,\n        usuario_id: null,\n        servicio_id: null,\n        nombre: null,\n        telefono: null,\n        rut: null,\n        correo: null,\n        servicio: null,\n        plan: null,\n        total_sesiones: null,\n        sesiones_usadas: null,\n        sesiones_pendientes: null,\n        precio: null,\n        respuesta:\n          \"Hola 🙌, no encontramos ningún plan activo asociado a tu cuenta. ¿Quieres que te ayudemos a contratar o renovar uno? 💬\"\n      }\n    }\n  ];\n}\n\n// Si hay datos válidos\nreturn $items().map(item => {\n  const total = parseInt(item.json.total_sesiones || 0);\n  const usadas = parseInt(item.json.sesiones_usadas || 0);\n  const pendientes = total - usadas;\n\n  // Si el usuario existe pero no tiene plan activo\n  if (!item.json.servicio_id || !item.json.total_sesiones) {\n    return {\n      json: {\n        // Datos WhatsApp\n        wa_id,\n        userMessage,\n        repliedMessage,\n\n        // Datos SQL\n        usuario_existe: false,\n        usuario_id: item.json.usuario_id || null,\n        servicio_id: null,\n        nombre: item.json.nombre || null,\n        telefono: item.json.telefono || null,\n        rut: item.json.rut || null,\n        correo: item.json.correo || null,\n        servicio: null,\n        plan: null,\n        total_sesiones: null,\n        sesiones_usadas: null,\n        sesiones_pendientes: null,\n        precio: null,\n        respuesta:\n          \"Hola 🙌, no encontramos ningún plan activo asociado a tu cuenta. ¿Quieres que te ayudemos a contratar o renovar uno? 💬\"\n      }\n    };\n  }\n\n  // Caso normal (usuario con plan activo)\n  return {\n    json: {\n      // Datos WhatsApp\n      wa_id,\n      userMessage,\n      repliedMessage,\n\n      // Datos SQL\n      usuario_existe: true,\n      usuario_id: item.json.usuario_id,\n      servicio_id: item.json.servicio_id,\n      nombre: item.json.nombre,\n      telefono: item.json.telefono,\n      rut: item.json.rut,\n      correo: item.json.correo,\n      servicio: item.json.nombre_especialidad,\n      plan: item.json.plan_nombre,\n      total_sesiones: total,\n      sesiones_usadas: usadas,\n      sesiones_pendientes: pendientes,\n      precio: parseFloat(item.json.precio),\n      respuesta: null\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4128,
+        -112
+      ],
+      "id": "6b6197aa-9e84-4bed-b448-8dc9cba5aacc",
+      "name": "JSON MoviData"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  let message = '';\n\n  try {\n    const parsed = JSON.parse(item.json.output);\n\n    let out = parsed.output;\n\n    // Caso 1: output es array → tomar primer elemento\n    if (Array.isArray(out)) {\n      out = out[0];\n    }\n\n    // Caso 2: output sigue siendo objeto con output interno\n    if (out && typeof out === 'object' && out.output) {\n      out = out.output;\n    }\n\n    // Caso 3: output ya es string\n    if (typeof out === 'string') {\n      message = out;\n    } else {\n      message = '';\n    }\n\n  } catch (e) {\n    // Fallback total\n    message = item.json.output ?? '';\n  }\n\n  return {\n    json: {\n      message\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6032,
+        -112
+      ],
+      "id": "49dc92b8-0d6a-407f-9633-5a40531b427d",
+      "name": "DividirDatos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const usuarios = $items()\n  .map(i => i.json)\n  // elimina objetos vacíos (sin claves)\n  .filter(u => Object.keys(u).length > 0);\n\nif (usuarios.length === 0) {\n  return [\n    {\n      json: {\n        usuario_existe: false,\n        respuesta: \"Hola 🙌, no encontramos tus datos. Por favor envíanos tu nombre completo, RUT y teléfono 💌.\"\n      }\n    }\n  ];\n}\n\nif (usuarios.length === 1) {\n  const u = usuarios[0];\n  return [\n    {\n      json: {\n        usuario_existe: true,\n        multiple_usuarios: false,\n        id: u.id,\n        nombre: u.nombre,\n        telefono: u.telefono,\n        rut: u.rut,\n        correo: u.correo\n      }\n    }\n  ];\n}\n\n// Más de un usuario\nconst opciones = usuarios.map(u => `• ${u.nombre}`).join('\\n');\nreturn [\n  {\n    json: {\n      usuario_existe: true,\n      multiple_usuarios: true,\n      respuesta: `Este número está asociado a más de una persona 👥\\n¿Para quién quieres agendar?\\n\\n${opciones}`,\n      usuarios: usuarios\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        -16
+      ],
+      "id": "3496344a-b5ec-496c-88b5-7caae11a1495",
+      "name": "UsuarioExiste",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "let ids = '';\n\nif ($json.usuarios && Array.isArray($json.usuarios)) {\n  // Si hay un array de usuarios (uno o varios)\n  ids = $json.usuarios.map(u => u.id).join(', ');\n} else if ($json.usuario && $json.usuario.id) {\n  // Si es un único usuario dentro de un objeto\n  ids = $json.usuario.id.toString();\n} else if ($json.id) {\n  // Si el ID viene directo en la raíz (como en tu caso actual)\n  ids = $json.id.toString();\n}\n\nreturn [\n  {\n    json: {\n      ids\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        -112
+      ],
+      "id": "4e0df798-82e5-4b4c-88dd-5bedcc4798a4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      ids: $items().map(item => item.json.id)\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3680,
+        -112
+      ],
+      "id": "c7478ca8-4c09-4159-864f-2a03606e5681",
+      "name": "Retornar data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "466fd9b5-5d76-47c2-ab02-4cf6c439f321",
+              "leftValue": "={{ $json.messages[0].text.body }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1216,
+        -16
+      ],
+      "id": "543dc1ca-13e0-4d7e-ab9a-a25517d6cef7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        4352,
+        112
+      ],
+      "id": "00e8f5a7-ebdd-4203-83e7-b36931dfc78c",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        4480,
+        112
+      ],
+      "id": "590bedf1-e6e2-4744-97d8-061ad4b1f5de",
+      "name": "OpenAI Fallback Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "=Traspasa los datos:\npersona_id: {{ $('Obtener datos').item.json.persona_id }}\nfecha_fin: {{ $('Obtener datos').item.json.fecha_fin }}\nids_servicios: {{ $('Obtener datos').item.json.ids_servicios }}\nnombre_servicios: {{ $('Obtener datos').item.json.nombre_servicios }}\nnombre: {{ $('Obtener datos').item.json.nombre }}\ntelefono: {{ $('Obtener datos').item.json.telefono }}\nrut: {{ $('Obtener datos').item.json.rut }}\ncorreo: {{ $('Obtener datos').item.json.correo }}\ntipo: {{ $('Obtener datos').item.json.tipo }}\n\n\n\n\n\n",
+        "workflowId": {
+          "__rl": true,
+          "value": "89NxjHmfW9htzum6",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/89NxjHmfW9htzum6",
+          "cachedResultName": "Agente Profesionales"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "persona_id": "={{ $('Obtener datos').item.json.persona_id }}",
+            "whatsapp": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+            "fecha_fin": "={{ $('Obtener datos').item.json.fecha_fin }}",
+            "ids_servicios": "={{ $('Obtener datos').item.json.ids_servicios }}",
+            "nombre_servicios": "={{ $('Obtener datos').item.json.nombre_servicios }}",
+            "nombre": "={{ $('Obtener datos').item.json.nombre }}",
+            "telefono": "={{ $('Obtener datos').item.json.telefono }}",
+            "rut": "={{ $('Obtener datos').item.json.rut }}",
+            "correo": "={{ $('Obtener datos').item.json.correo }}",
+            "tipo": "={{ $('Obtener datos').item.json.tipo }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "whatsapp",
+              "displayName": "whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "persona_id",
+              "displayName": "persona_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "fecha_fin",
+              "displayName": "fecha_fin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "ids_servicios",
+              "displayName": "ids_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre_servicios",
+              "displayName": "nombre_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "rut",
+              "displayName": "rut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4736,
+        112
+      ],
+      "id": "3a673157-0f83-4a94-bfbf-a9c87f5cb049",
+      "name": "Call 'Agente Profesionales'",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "description": "=Traspasa los datos:\npersona_id: {{ $('Obtener datos').item.json.persona_id }}\nfecha_fin: {{ $('Obtener datos').item.json.fecha_fin }}\nids_servicios: {{ $('Obtener datos').item.json.ids_servicios }}\nnombre_servicios: {{ $('Obtener datos').item.json.nombre_servicios }}\nnombre: {{ $('Obtener datos').item.json.nombre }}\ntelefono: {{ $('Obtener datos').item.json.telefono }}\nrut: {{ $('Obtener datos').item.json.rut }}\ncorreo: {{ $('Obtener datos').item.json.correo }}\ntipo: {{ $('Obtener datos').item.json.tipo }}\n\n\n\n\n\n",
+        "workflowId": {
+          "__rl": true,
+          "value": "2QP6wdQDZriDVhBZ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/2QP6wdQDZriDVhBZ",
+          "cachedResultName": "Agente Nutricion"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "persona_id": "={{ $('Obtener datos').item.json.persona_id }}",
+            "fecha_fin": "={{ $('Obtener datos').item.json.fecha_fin }}",
+            "ids_servicios": "={{ $('Obtener datos').item.json.ids_servicios }}",
+            "nombre_servicios": "={{ $('Obtener datos').item.json.nombre_servicios }}",
+            "nombre": "={{ $('Obtener datos').item.json.nombre }}",
+            "telefono": "={{ $('Obtener datos').item.json.telefono }}",
+            "rut": "={{ $('Obtener datos').item.json.rut }}",
+            "correo": "={{ $('Obtener datos').item.json.correo }}",
+            "tipo": "={{ $('Obtener datos').item.json.tipo }}",
+            "whatsapp": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "whatsapp",
+              "displayName": "whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "persona_id",
+              "displayName": "persona_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "fecha_fin",
+              "displayName": "fecha_fin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "ids_servicios",
+              "displayName": "ids_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre_servicios",
+              "displayName": "nombre_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "rut",
+              "displayName": "rut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4864,
+        112
+      ],
+      "id": "ba9a013a-e193-4132-bba6-494cc54a7e9f",
+      "name": "Call 'Agente Nutricion'",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "description": "=Traspasa los datos",
+        "workflowId": {
+          "__rl": true,
+          "value": "JkVqYZ31qXPEGbPA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/JkVqYZ31qXPEGbPA",
+          "cachedResultName": "Agente Psicologia"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "persona_id": "={{ $('JSON MoviData').item.json.usuario_id }}",
+            "whatsapp": "={{ $('WhatsApp Trigger').item.json.contacts[0].wa_id }}",
+            "fecha_fin": "=",
+            "ids_servicios": "={{ $('JSON MoviData').item.json.servicio_id }}",
+            "nombre_servicios": "={{ $('JSON MoviData').item.json.plan }}",
+            "nombre": "={{ $('JSON MoviData').item.json.nombre }}",
+            "telefono": "={{ $('JSON MoviData').item.json.telefono }}",
+            "rut": "={{ $('JSON MoviData').item.json.rut }}",
+            "correo": "={{ $('JSON MoviData').item.json.correo }}",
+            "tipo": "="
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "whatsapp",
+              "displayName": "whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "persona_id",
+              "displayName": "persona_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "fecha_fin",
+              "displayName": "fecha_fin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "ids_servicios",
+              "displayName": "ids_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre_servicios",
+              "displayName": "nombre_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "rut",
+              "displayName": "rut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        4992,
+        112
+      ],
+      "id": "eae21629-faa7-4b6c-85c0-fc65ebd1a8bf",
+      "name": "Call 'Agente Psicologia'",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=chat_movandes_{{ $json.wa_id }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        4608,
+        112
+      ],
+      "id": "11a7cf52-b139-4b56-b5f9-c42cf04ae0c2",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "=Toma el contexto del chat: {{ $('JSON MoviData').item.json.userMessage }}\n\nNo des una salida de más de 200 caracteres.",
+        "topK": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Limit', ``, 'number') }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolVectorStore",
+      "typeVersion": 1.1,
+      "position": [
+        5120,
+        112
+      ],
+      "id": "85dd906a-b7a9-41f6-ad56-a0440b6ec5fe",
+      "name": "MovandesData"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5408,
+        320
+      ],
+      "id": "20f40ccd-63e1-4359-b313-6ff9c0c2ba23",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1.3,
+      "position": [
+        5024,
+        320
+      ],
+      "id": "19a3cae0-636a-476f-8915-1575b1d85d45",
+      "name": "Movandes",
+      "credentials": {
+        "postgres": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "wa_id",
+        "key": "={{ $json.repliedMessageId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        2112,
+        -96
+      ],
+      "id": "684ed600-ad04-41f7-994b-8086a7645d53",
+      "name": "Redis",
+      "credentials": {
+        "redis": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n entrega un array, tomamos el primer elemento\nconst data = $json;\n\n// Acceder a contacts y messages directamente\nconst contact = data.contacts?.[0];\nconst message = data.messages?.[0];\n\nreturn [\n  {\n    json: {\n      wa_id: contact?.wa_id || null,\n      userMessage: message?.text?.body || \"\",\n      isReply: !!message?.context,\n      repliedMessageId: message?.context?.id || null,\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        -16
+      ],
+      "id": "619d4be1-90c2-4905-a43b-66dd673834db",
+      "name": "Verificar_Citado"
+    },
+    {
+      "parameters": {
+        "description": "=Traspasa los datos indicados en los inputs.",
+        "workflowId": {
+          "__rl": true,
+          "value": "8ZHLSD0ZvdBD6Cp0",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/8ZHLSD0ZvdBD6Cp0",
+          "cachedResultName": "Agente Entrenamiento"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "persona_id": "={{ $('JSON MoviData').item.json.usuario_id }}",
+            "nombre": "={{ $('JSON MoviData').item.json.nombre }}",
+            "nombre_servicios": "={{ $('JSON MoviData').item.json.servicio }}",
+            "telefono": "={{ $('JSON MoviData').item.json.telefono }}",
+            "rut": "={{ $('JSON MoviData').item.json.rut }}",
+            "correo": "={{ $('JSON MoviData').item.json.correo }}",
+            "ids_servicios": "={{ $('JSON MoviData').item.json.servicio_id }}",
+            "whatsapp": "={{ $('WhatsApp Trigger').all()[0].json.contacts[0].wa_id }}",
+            "mensaje_whatsapp": "={{ $('WhatsApp Trigger').all()[0].json.messages[0].text.body }}",
+            "input_movi": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('input_movi', `Toma la información entregada en la query por la IA.`, 'string') }}",
+            "sesiones_usadas": "={{ $json.sesiones_usadas }}",
+            "total_sesiones": "={{ $('JSON MoviData').item.json.total_sesiones }}",
+            "sesiones_pendientes": "={{ $('JSON MoviData').item.json.sesiones_pendientes }}",
+            "mensaje_citado": "={{ $('JSON MoviData').item.json.repliedMessage }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "whatsapp",
+              "displayName": "whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mensaje_whatsapp",
+              "displayName": "mensaje_whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "persona_id",
+              "displayName": "persona_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "fecha_fin",
+              "displayName": "fecha_fin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": true
+            },
+            {
+              "id": "ids_servicios",
+              "displayName": "ids_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre_servicios",
+              "displayName": "nombre_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "rut",
+              "displayName": "rut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "input_movi",
+              "displayName": "input_movi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sesiones_usadas",
+              "displayName": "sesiones_usadas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "total_sesiones",
+              "displayName": "total_sesiones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sesiones_pendientes",
+              "displayName": "sesiones_pendientes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mensaje_citado",
+              "displayName": "mensaje_citado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5408,
+        112
+      ],
+      "id": "4426dc07-7df4-49e8-989d-98bdee1ec23a",
+      "name": "agente_entrenamiento"
+    },
+    {
+      "parameters": {
+        "description": "=Traspasa los datos",
+        "workflowId": {
+          "__rl": true,
+          "value": "lp6PHYenk8n9MRwP",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/lp6PHYenk8n9MRwP",
+          "cachedResultName": "Agente Kinesiologia"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "persona_id": "={{ $('JSON MoviData').item.json.usuario_id }}",
+            "fecha_fin": "=",
+            "ids_servicios": "={{ $('JSON MoviData').item.json.servicio_id }}",
+            "nombre_servicios": "={{ $('JSON MoviData').item.json.plan }}",
+            "nombre": "={{ $('JSON MoviData').item.json.nombre }}",
+            "telefono": "={{ $('JSON MoviData').item.json.telefono }}",
+            "rut": "={{ $('JSON MoviData').item.json.rut }}",
+            "correo": "={{ $('JSON MoviData').item.json.correo }}",
+            "whatsapp": "={{ $('WhatsApp Trigger').all()[0].json.contacts[0].wa_id }}\n",
+            "mensaje_whatsapp": "={{ $('WhatsApp Trigger').all()[0].json.messages[0].text.body }}",
+            "input_movi": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('input_movi', `Toma la información entregada en la query por la IA.`, 'string') }}",
+            "sesiones_usadas": "={{ $json.sesiones_usadas }}",
+            "total_sesiones": "={{ $('JSON MoviData').item.json.total_sesiones }}",
+            "sesiones_pendientes": "={{ $('JSON MoviData').item.json.sesiones_pendientes }}",
+            "mensaje_citado": "={{ $('JSON MoviData').item.json.repliedMessage }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "whatsapp",
+              "displayName": "whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mensaje_whatsapp",
+              "displayName": "mensaje_whatsapp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "persona_id",
+              "displayName": "persona_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            },
+            {
+              "id": "fecha_fin",
+              "displayName": "fecha_fin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "ids_servicios",
+              "displayName": "ids_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre_servicios",
+              "displayName": "nombre_servicios",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "rut",
+              "displayName": "rut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "correo",
+              "displayName": "correo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "input_movi",
+              "displayName": "input_movi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sesiones_usadas",
+              "displayName": "sesiones_usadas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "total_sesiones",
+              "displayName": "total_sesiones",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sesiones_pendientes",
+              "displayName": "sesiones_pendientes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mensaje_citado",
+              "displayName": "mensaje_citado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        5536,
+        112
+      ],
+      "id": "4f865aa4-3d6f-4eaa-834c-636e63295f14",
+      "name": "agente_kinesiologia"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ee78dfee-ba9a-4cdc-8db1-17bb1fc75fcf",
+              "leftValue": "={{ $json.isReply }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1888,
+        -16
+      ],
+      "id": "4768351c-9e3f-4a02-b38d-927e9dda7d37",
+      "name": "Citado True-false"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $json[\"messages\"][0][\"id\"] }}",
+        "value": "={{ $json[\"messages\"][0][\"text\"][\"body\"] }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        -16
+      ],
+      "id": "3a9af33f-f8ba-4141-b9cf-304148a77806",
+      "name": "MensajeCitado",
+      "credentials": {
+        "redis": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Mensaje del usuario:\n{{ $json.userMessage }}\n\nMensaje citado:\n{{ $json.repliedMessage || 'vacio' }}\n\nIntención detectada (preliminar):\n{{ $json.intencion || 'vacio' }}\n\nEstado conversacional:\nstep: {{ $json.step || 'INICIO' }}\nlast_response_type: {{ $json.last_response_type || 'vacio' }}\npending_action: {{ $json.pending_action || 'vacio' }}\n\nDatos del usuario:\nusuario_existe: {{ $json.usuario_existe }}\nusuario_id: {{ $json.usuario_id }}\nnombre: {{ $json.nombre || 'vacio' }}\ntelefono: {{ $json.telefono || 'vacio' }}\nrut: {{ $json.rut || 'vacio' }}\ncorreo: {{ $json.correo || 'vacio' }}\nservicio: {{ $json.servicio || 'vacio' }}\nplan: {{ $json.plan || 'vacio' }}\ntotal_sesiones: {{ $json.total_sesiones || 0 }}\nsesiones_usadas: {{ $json.sesiones_usadas || 0 }}\nsesiones_pendientes: {{ $json.sesiones_pendientes || 0 }}\nprecio: {{ $json.precio || 0 }}\n\nContexto temporal:\nfecha_hoy: {{ $now.format('DDDD') }}\nhora_actual: {{ $now.format('HH:mm') }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=Eres Movi 🤖, el asistente orquestador oficial de Movandes.\n\nEres un agente de CONTROL (router), NO conversacional.\n\n❌ No haces small talk  \n❌ No redactas mensajes finales al usuario  \n❌ No improvisas respuestas humanas  \n❌ No explicas reglas en lenguaje natural  \n❌ No muestras información técnica  \n❌ No persistes estado (Redis se gestiona externamente)\n\n✅ Detectas intención  \n✅ Evalúas el estado del usuario  \n✅ Detectas datos faltantes  \n✅ Decides OBLIGATORIAMENTE si se debe usar una tool  \n✅ Ejecutas como máximo UNA tool por turno  \n✅ Reenvías contexto COMPLETO cuando delegas a subagentes  \n\n────────────────────────────────\n🎯 RESPONSABILIDAD PRINCIPAL\n────────────────────────────────\nTu única función es decidir QUÉ HACER a continuación:\nClasificar intención\nDecidir si se requiere información o acción\nElegir la tool correcta\nDelegar con contexto completo\n\nNunca generas texto final para el usuario.\n\n────────────────────────────────\n🤖 INTENCIONES VÁLIDAS (PRIORIDAD)\n────────────────────────────────\n1) CONOCER_ESTADO  \n2) AGENDAR  \n3) CAMBIAR  \n4) CANCELAR  \n5) CONSULTAR  \n6) SALUDO  \n7) AMBIGUO  \n\n────────────────────────────────\n🚫 REGLAS CRÍTICAS DE CLASIFICACIÓN\n────────────────────────────────\nSi el mensaje contiene preguntas sobre:\nsesiones\nplan\nsaldo\nhoras restantes\nsesiones usadas o pendientes\n\nLa intención ES OBLIGATORIAMENTE: CONOCER_ESTADO  \nPROHIBIDO usar MovandesData  \nPROHIBIDO usar subagentes  \nDEBES usar Movagente  \n\nSALUDO solo es válido si el mensaje contiene ÚNICAMENTE:\n“hola”\n“buenas”\n“buen día”\n“hey”\nemojis de saludo\n\nSi hay cualquier verbo o consulta → NO es SALUDO.\n\n────────────────────────────────\n🧩 MENSAJES CITADOS\n────────────────────────────────\nConfirmaciones se tratan como aprobación implícita  \nFechas u horas citadas son contexto adicional  \nNo se consideran un nuevo mensaje  \n\n────────────────────────────────\n🛠️ TOOLS DISPONIBLES\n────────────────────────────────\nMovagente\nMovandesData\nagente_kinesiologia\nagente_entrenamiento\n\n────────────────────────────────\n📌 REGLAS OBLIGATORIAS DE USO DE TOOLS\n────────────────────────────────\nSALUDO → Movagente  \nCONOCER_ESTADO → Movagente  \nCONSULTA INSTITUCIONAL → MovandesData  \nAGENDA / DISPONIBILIDAD / AGENDAR / CAMBIAR / CANCELAR → subagente según servicio  \n\n────────────────────────────────\n🚨 REGLA CRÍTICA — NO EXISTE HERENCIA DE CONTEXTO\n────────────────────────────────\nLos subagentes NO heredan información.\n\nCuando delegues a un subagente, DEBES reenviar explícitamente:\nintención detectada\nmensaje del usuario\nmensaje citado (si existe)\ntodos los datos del usuario\nestado conversacional\nfechas y horas detectadas (o “vacio”)\n\nSi un dato no existe, usa la palabra “vacio”.\nNunca asumas que el subagente conoce algo.\n\n────────────────────────────────\n📦 SALIDA\n────────────────────────────────\nMovi debe ejecutar una tool.\nSi ya ejecutó una tool, NO debe ejecutar ninguna otra.\nMovi NUNCA escribe texto al usuario\nSi se necesita respuesta, DEBES usar una tool\nNo devuelvas texto libre\nNo devuelvas JSON manual\nSi no hay intención clara o acción definida, DEBES usar Movagente como fallback.\n\n\n\n\n🛑 REGLA DE CIERRE DE EJECUCIÓN (CRÍTICA PARA N8N)\nCuando ejecutes una tool (Movagente, MovandesData o subagentes):\n\nDebes considerar la ejecución como FINALIZADA.\n\nDebes devolver una respuesta final mínima para cerrar el turno.\n\nEsa respuesta NO es para el usuario, solo para finalizar el flujo.\n\nFormato obligatorio de cierre:\n{\n  \"status\": \"DONE\",\n  \"output\": [Respuesta de la tool]\n}\n\nEstá prohibido devolver:\n- output vacío\n- output null\n- output \"\"\n- Está PROHIBIDO usar el contexto como output de cierre.\n- El output SIEMPRE debe provenir de una tool.\n\n────────────────────────────────\n🚫 REGLA ANTI-LOOP\n────────────────────────────────\nSi ya se ejecutó una tool en este turno:\n\n- NO vuelvas a evaluar intención\n- NO vuelvas a decidir acciones\n- NO ejecutes ninguna otra tool\n- DEVUELVE inmediatamente el cierre DONE\n\nEste cierre NO requiere nueva tool.\nNo ejecutes más lógica después de llamar una tool."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        4864,
+        -112
+      ],
+      "id": "a2c5dc87-9e95-4bc2-9c79-26f8107eb6c8",
+      "name": "Movi",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5744,
+        320
+      ],
+      "id": "47a00fdb-e5be-4623-8589-24518920f7af",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Eres Movagente, el agente conversacional de Movandes.",
+        "text": "=Eres Movagente 💬, el agente conversacional oficial de Movandes.\n\nTu misión es responder al usuario de forma:\n😊 cercana\n🤝 humana\n✨ natural\n📲 como una persona real por WhatsApp\n\nNo eres un sistema, eres un asistente amable.\n\n────────────────────────\n🎯 TU ROL\n────────────────────────\n\n❌ No tomas decisiones  \n❌ No ejecutas herramientas  \n❌ No validas reglas  \n❌ No agendas ni cancelas  \n❌ No inventas datos  \n\n✅ Redactas la respuesta FINAL al usuario  \n✅ Usas SOLO la información recibida  \n✅ Adaptas el tono al flujo de la conversación  \n\n────────────────────────\n📥 CONTEXTO QUE RECIBES\n────────────────────────\n\nMensaje del usuario:\n{{ $json.userMessage }}\n\nMensaje citado:\n{{ $json.repliedMessage || 'vacio' }}\n\nSiempre recibes una instrucción así:\n\n{\n  \"response_type\": \"...\",\n  \"data\": {}\n}\n\nNunca inventes datos que no estén en data.\n\nDatos disponibles:\nnombre: {{ $json.nombre }}\nservicio: {{ $json.servicio }}\nplan: {{ $json.plan }}\ntotal_sesiones: {{ $json.total_sesiones }}\nsesiones_usadas: {{ $json.sesiones_usadas }}\nsesiones_pendientes: {{ $json.sesiones_pendientes }}\n\n────────────────────────\n🚨 REGLA CRÍTICA DE SALUDO\n────────────────────────\n\nSALUDO solo si en el mensaje del usuario indica alguna palabra relacionada a saludos: \"hola\", \"buenas\", \"buen día\", \"buenos días\", \"buenas tardes\".\n\n\nSi la conversación ya está activa:\n❌ No saludes\n❌ No repitas “Hola”\n❌ No digas “¿En qué te puedo ayudar?” otra vez\n\n────────────────────────\n🧠 REGLA DE VARIACIÓN (MUY IMPORTANTE)\n────────────────────────\n\nNunca repitas exactamente:\nLa misma estructura de frase\nEl mismo cierre\nEl nombre completo del usuario en mensajes consecutivos\n\nAlterna entre:\n“Te quedan…”\n“Actualmente tienes…”\n“Ahora mismo cuentas con…”\n“En tu plan hay…”\n\n────────────────────────\n🗂️ TIPOS DE RESPUESTA (ESTILO REAL)\n────────────────────────\n\nCONOCER_ESTADO – SESIONES\n\nEjemplos válidos (elige uno, varía cada vez):\n\n• \"Te quedan **{{ $json.sesiones_pendientes }} sesiones** disponibles en tu plan de {{ $json.servicio }} 😊\"\n\n• \"Actualmente tienes **{{ $json.sesiones_pendientes }} sesiones pendientes** de tu plan 🙌\"\n\n• \"En tu plan de {{ $json.servicio }} aún cuentas con **{{ $json.sesiones_pendientes }} sesiones** 💪\"\n\nCierre suave (opcional, no siempre):\n• \"¿Te ayudo con algo más?\"\n• \"¿Quieres agendar una?\"\n• \"¿Vemos lo que sigue?\"\n\n────────────────────────\n\nCONOCER_ESTADO – PLAN\n\nEjemplos:\n\n• \"Tu plan actual es **{{ $json.plan }}** 😊\"\n• \"Estás con el plan **{{ $json.plan }}**, que incluye {{ $json.total_sesiones }} sesiones 🙌\"\n\n────────────────────────\n\nSALUDO\n\n• \"Hola {{ $json.nombre }} 😊 ¿Cómo estás?\"\n\n────────────────────────\n🎨 ESTILO\n────────────────────────\n\nEspañol neutro  \nCercano y cálido  \nMensajes cortos  \n1–2 emojis máximo  \nNada robótico  \nNada repetitivo  \n\n────────────────────────\n🚫 PROHIBICIONES ABSOLUTAS\n────────────────────────\n\n❌ Repetir el nombre completo en cada mensaje  \n❌ Responder como sistema informativo  \n❌ Repetir la misma frase dos turnos seguidos  \n❌ Ser excesivamente formal  \n\n────────────────────────\n📅 CONTEXTO\n────────────────────────\nHoy es: {{ $now.format('DDDD') }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agentTool",
+      "typeVersion": 2.2,
+      "position": [
+        5664,
+        112
+      ],
+      "id": "3296df6e-172a-4d07-9b10-53b126ffb3c4",
+      "name": "Movagente"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5104,
+        528
+      ],
+      "id": "c731f412-a59f-453e-b7d9-1155bfaeb950",
+      "name": "Embeddings OpenAI Vector",
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": ""
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Usuario": {
+      "main": [
+        [
+          {
+            "node": "UsuarioExiste",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send message and wait for response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ObtieneServicioContratado": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Retornar data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sesiones_Usadas": {
+      "main": [
+        [
+          {
+            "node": "JSON MoviData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JSON MoviData": {
+      "main": [
+        [
+          {
+            "node": "Movi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DividirDatos": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UsuarioExiste": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "ObtieneServicioContratado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retornar data": {
+      "main": [
+        [
+          {
+            "node": "Sesiones_Usadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "MensajeCitado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Fallback Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Call 'Agente Profesionales'": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Agente Nutricion'": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call 'Agente Psicologia'": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MovandesData": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "MovandesData",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movandes": {
+      "ai_vectorStore": [
+        [
+          {
+            "node": "MovandesData",
+            "type": "ai_vectorStore",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis": {
+      "main": [
+        [
+          {
+            "node": "Buscar Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar_Citado": {
+      "main": [
+        [
+          {
+            "node": "Citado True-false",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agente_entrenamiento": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "agente_kinesiologia": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Citado True-false": {
+      "main": [
+        [
+          {
+            "node": "Redis",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Usuario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MensajeCitado": {
+      "main": [
+        [
+          {
+            "node": "Verificar_Citado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movi": {
+      "main": [
+        [
+          {
+            "node": "DividirDatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Movagente",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movagente": {
+      "ai_tool": [
+        [
+          {
+            "node": "Movi",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI Vector": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Movandes",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "Ej51cSMFxb2qwIu2",
+    "timeSavedPerExecution": 5
+  },
+  "versionId": "0f2b45ec-5266-4d5a-9611-09ab2a2fe4e9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "82d34b1725d20829a680d7ad29ebeb02f609d721de1f8b89cff3f3cf9893ee1b"
+  },
+  "id": "ArhYInFsHZYNwLKq",
+  "tags": []
+}
