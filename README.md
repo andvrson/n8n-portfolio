@@ -14,4 +14,4 @@ Este repositorio reúne mis proyectos reales desarrollados con **n8n**, integran
 
 | Proyecto | Descripción | Tecnologías |
 |---------|-------------|-------------|
-| [Bot WhatsApp + OpenAI](./whatsapp-openai-bot) | Bot inteligente con OpenAI y PostgreSQL | n8n, WhatsApp API, OpenAI |
+| [Bot WhatsApp + OpenAI](./Agente-Whatsapp.json) | Bot inteligente con OpenAI y PostgreSQL | n8n, WhatsApp API, OpenAI |
